@@ -58,6 +58,42 @@
 			<version>11.1.0</version>
 			<classifier>mule-plugin</classifier>
 		</dependency>
+		<dependency>
+			<groupId>com.mulesoft.modules</groupId>
+			<artifactId>mule-secure-configuration-property-module</artifactId>
+			<version>1.2.7</version>
+			<classifier>mule-plugin</classifier>
+		</dependency>
+		<dependency>
+			<groupId>8d687dc5-2af7-4100-8808-5e4a6156064e</groupId>
+			<artifactId>mule-plugin-erpbocustomersvc</artifactId>
+			<version>1.0.5</version>
+			<classifier>mule-plugin</classifier>
+		</dependency>
+		<dependency>
+			<groupId>8d687dc5-2af7-4100-8808-5e4a6156064e</groupId>
+			<artifactId>mule-plugin-icebosystagsvc</artifactId>
+			<version>1.0.0</version>
+			<classifier>mule-plugin</classifier>
+		</dependency>
+		<dependency>
+			<groupId>8d687dc5-2af7-4100-8808-5e4a6156064e</groupId>
+			<artifactId>mule-plugin-iceboud106svc</artifactId>
+			<version>1.0.1</version>
+			<classifier>mule-plugin</classifier>
+		</dependency>
+		<dependency>
+			<groupId>org.mule.connectors</groupId>
+			<artifactId>mule-vm-connector</artifactId>
+			<version>2.0.1</version>
+			<classifier>mule-plugin</classifier>
+		</dependency>
+		<dependency>
+			<groupId>8d687dc5-2af7-4100-8808-5e4a6156064e</groupId>
+			<artifactId>mule-plugin-baqsvc-customer</artifactId>
+			<version>2.0.0</version>
+			<classifier>mule-plugin</classifier>
+		</dependency>
 	</dependencies>
 
 	<repositories>
