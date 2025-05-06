@@ -10,6 +10,6 @@ http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mu
 				<fixed-frequency />
 			</scheduling-strategy>
 		</salesforce:new-object-listener>
-		<logger level="INFO" doc:name="Logger" doc:id="49b0b1c7-7990-47ae-8f29-f8459ab4d97b" message="Test"/>
+		<logger level="INFO" doc:name="Logger" doc:id="49b0b1c7-7990-47ae-8f29-f8459ab4d97b" message="Test 2"/>
 	</flow>
 </mule>
