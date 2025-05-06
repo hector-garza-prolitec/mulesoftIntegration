@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:businessactivityquery-mule-customer="http://www.mulesoft.org/schema/mule/businessactivityquery-mule-customer" xmlns:tls="http://www.mulesoft.org/schema/mule/tls" 
+	xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties"
+	xmlns:vm="http://www.mulesoft.org/schema/mule/vm" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:ice-bo-sys-tag-svc="http://www.mulesoft.org/schema/mule/ice-bo-sys-tag-svc"
+	xmlns:ice-boud106svc="http://www.mulesoft.org/schema/mule/ice-boud106svc" xmlns:erp-bo-customer-svc="http://www.mulesoft.org/schema/mule/erp-bo-customer-svc" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd 
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/erp-bo-customer-svc http://www.mulesoft.org/schema/mule/erp-bo-customer-svc/current/mule-erp-bo-customer-svc.xsd
+http://www.mulesoft.org/schema/mule/ice-boud106svc http://www.mulesoft.org/schema/mule/ice-boud106svc/current/mule-ice-boud106svc.xsd
+http://www.mulesoft.org/schema/mule/ice-bo-sys-tag-svc http://www.mulesoft.org/schema/mule/ice-bo-sys-tag-svc/current/mule-ice-bo-sys-tag-svc.xsd
+http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd
+http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd
+http://www.mulesoft.org/schema/mule/businessactivityquery-mule-customer http://www.mulesoft.org/schema/mule/businessactivityquery-mule-customer/current/mule-businessactivityquery-mule-customer.xsd">
+	<businessactivityquery-mule-customer:config name="Business_activity_query__Mule_Customer__Config" doc:name="Business activity query 'Mule-Customer' Config" doc:id="727a6012-5ef6-403f-8e81-35a98e7e07e1" property_host="${epicorHostName}" property_port="${epicorPort}" property_basePath="${epicorBasePathV2}/odata/PROLITEC/BaqSvc/Mule-Customer" property_protocol="HTTPS" property_username="${secure::epicorUserName}" property_password="${secure::epicorPassword}"/>
+	<salesforce:sfdc-config name="Salesforce_Config" doc:name="Salesforce Config" doc:id="5b8064e5-768b-47d9-a201-2e69cfb8e0d2" >
+		<salesforce:basic-connection username='${secure::sfUserName}' password='${secure::sfPassword}' securityToken='${secure::sfSecurityToken}' url="${sfURL}" />
+	</salesforce:sfdc-config>
+	<configuration-properties doc:name="Configuration properties" doc:id="e417c763-ee7a-49f8-ab79-32ccdce0be1d" file="${env}.properties" />
+	<global-property doc:name="Global Property" doc:id="aa29a31a-af88-45c8-942b-e048aecad06c" name="env" value="local" />
+	<http:request-config name="HTTP_Request_configuration1" doc:name="HTTP Request configuration" doc:id="f4737ed4-1c75-48a4-999b-1201c844be29" responseTimeout="30000">
+		<http:request-connection host="${http.Host}" port="${http.Port}" connectionIdleTimeout="60000" protocol="${http.Protocol}"/>
+	</http:request-config>
+	
+	<vm:config name="VM_Config" doc:name="VM Config" doc:id="9b6b242c-c196-4106-a80e-6b4619bdbb7c" >
+		<vm:queues >
+			<vm:queue queueName="accountQueue" maxOutstandingMessages="50" />
+		</vm:queues>
+	</vm:config>
+	<erp-bo-customer-svc:config name="Erp_BO_CustomerSvc_Config" doc:name="Erp.BO.CustomerSvc Config" doc:id="f9d059b4-f357-42a2-a15c-56fb74db9d0e" property_host="${epicorHostName}" property_port="${epicorPort}" property_basePath='${epicorBasePath}/Erp.BO.CustomerSvc' property_protocol="HTTPS" property_username="${secure::epicorUserName}" property_password="${secure::epicorPassword}"/>
+	
+	<ice-boud106svc:config name="Ice_BO_UD106Svc_Config" doc:name="Ice.BO.UD106Svc Config" doc:id="817a929f-8fa8-4865-a6ee-a6a3ca6f107f" property_host="${epicorHostName}" property_port="${epicorPort}" property_basePath='${epicorBasePath}/Ice.BO.UD106Svc' property_protocol="HTTPS" property_username="${secure::epicorUserName}" property_password="${secure::epicorPassword}" />
+	
+	
+	<ice-bo-sys-tag-svc:config name="Ice_BO_SysTagSvc_Config" doc:name="Ice.BO.SysTagSvc Config" doc:id="3510a662-4914-45e9-9593-5dc384eff9c5" property_host="${epicorHostName}" property_port="${epicorPort}" property_basePath='${epicorBasePath}/Ice.BO.SysTagSvc' property_protocol="HTTPS" property_username="${secure::epicorUserName}" property_password="${secure::epicorPassword}" />
+	<secure-properties:config name="Secure_Properties_Config" doc:name="Secure Properties Config" doc:id="52f7d6a4-97b7-4c72-9f01-ec9e31a3daa3" file="${env}.secure.properties" key="${secure.key}" >
+		<secure-properties:encrypt algorithm="Blowfish" />
+	</secure-properties:config>
+	<global-property doc:name="Global Property" doc:id="a2994741-f75a-4b78-a8a6-7da0cb5484c7" name="secure.key" value="MyMulesoftKey" />
+	<http:listener-config name="HTTP_Listener_config_2" doc:name="HTTP Listener config" doc:id="578aae3c-9d10-4dbe-ba99-4b04182e6401" >
+		<http:listener-connection host="0.0.0.0" port="${http.Port.Reprocess}">
+		</http:listener-connection>
+	</http:listener-config>
+
+</mule>
