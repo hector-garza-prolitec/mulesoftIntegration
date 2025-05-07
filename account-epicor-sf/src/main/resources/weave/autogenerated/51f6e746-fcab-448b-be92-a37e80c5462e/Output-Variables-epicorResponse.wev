@@ -1,0 +1,34 @@
+%dw 2.0
+
+type auto_51f6e746_fcab_448b_be92_a37e80c5462e_Output_Variables_epicorResponse = {
+  Country_Description: String, 
+  Customer_CustNum: Number, 
+  Customer_Name: String, 
+  Customer_TaxMethod: String, 
+  Customer_SysRevID: Number, 
+  Customer_CreditHold: Boolean, 
+  Customer_Address2: String, 
+  Customer_Address1: String, 
+  Customer_DefaultFOB: String, 
+  Customer_ChangedBy: String, 
+  Customer_TermsCode: String, 
+  Customer_SalesRepCode: String, 
+  Customer_Company: String, 
+  Customer_ResaleID: String, 
+  Customer_ShipViaCode: String, 
+  Country_ISOCode: String, 
+  Customer_State: String, 
+  Customer_TaxExempt: String, 
+  Customer_CustomerType: String, 
+  Customer_CustID: String, 
+  Customer_Address3: String, 
+  RowIdent?: String, 
+  Customer_City: String, 
+  Customer_TaxRegionCode: String, 
+  Customer_TerritoryID: String, 
+  Customer_EntityUseCode: String, 
+  Customer_Zip: String, 
+  Customer_SalesForceID_c: String, 
+  _?: Any
+}
+

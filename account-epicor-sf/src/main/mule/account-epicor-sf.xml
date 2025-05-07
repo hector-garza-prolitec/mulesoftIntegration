@@ -147,6 +147,24 @@ output application/json
 			</otherwise>
 		</choice>
 	</flow>
+	<flow name="lookupInSF" doc:id="51f6e746-fcab-448b-be92-a37e80c5462e" >
+		<salesforce:query doc:name="Query" doc:id="1113f896-2e3c-4aac-8183-f5cd98aed227" config-ref="Salesforce_Config">
+			<salesforce:salesforce-query ><![CDATA[Select Id, BD_Epicor_ID__c, AccountNumber FROM Account WHERE AccountNumber = :acct]]></salesforce:salesforce-query>
+			<salesforce:parameters ><![CDATA[#[output application/java
+---
+{
+	acct : "'" ++ vars.epicorResponse.Customer_CustID ++ "'"
+}]]]></salesforce:parameters>
+		</salesforce:query>
+		<choice doc:name="Choice" doc:id="25dbff0d-6694-491e-9dba-ff394513f392" >
+			<when expression="#[sizeOf(payload.value) &gt; 0]" >
+				<set-variable value="#[payload[0].Id]" doc:name="sfID" doc:id="891b0d96-e8dc-4078-847f-0d68f5af6c4e" variableName="sfID" />
+			</when>
+			<otherwise >
+				<set-variable value='#[""]' doc:name="sfID" doc:id="cbd36b4c-4125-4aad-9f54-9cd19886cc7d" variableName="sfID" />
+			</otherwise>
+		</choice>
+	</flow>
 	<sub-flow name="epicorToSF" doc:id="9e6a445a-b2ab-4d0f-b471-305bc4e7f3eb" >
 		<ee:transform doc:name="Initialize Variables" doc:id="3278e6c3-a958-4aa1-95bf-4c9bb7f5eb8c" >
 			<ee:message >
@@ -319,18 +337,25 @@ output application/json
 		</scatter-gather>
 	</sub-flow>
 	<sub-flow name="getEpicorRecords" doc:id="69590a58-e8fc-4458-9e1c-8e5d201cc90b" >
+		<set-variable value="#[[]]" doc:name="Set Variable" doc:id="71881485-7ea5-40c3-ac62-5535f616d46b" variableName="records"/>
 		<businessactivityquery-mule-customer:execute doc:name="Execute" doc:id="34baed77-2ce0-4f07-b7cb-95bb1103dce9" config-ref="Business_activity_query__Mule_Customer__Config" x-api-key="${epicorAPIKey}" top="${odata.Top}" count="true"/>
 		<foreach doc:name="For Each" doc:id="4a86c56d-3fb9-4701-a959-914be8310665" collection="#[payload.value]">
 			<set-variable value="#[payload]" doc:name="epicorResponse" doc:id="331510a1-9653-4fc4-a015-b5127c55e119" variableName="epicorResponse"/>
+			<flow-ref doc:name="lookupInSF" doc:id="c2d8c02c-a495-4900-a524-fdfce7a3e5d2" name="lookupInSF"/>
 			<ee:transform doc:name="Transform Message" doc:id="9e27fa5f-2cff-4d37-8e3c-3a2b7d2f2eba">
 			<ee:message>
 			</ee:message>
 				<ee:variables >
 					<ee:set-variable variableName="records" ><![CDATA[%dw 2.0
+
+var forceId = Mule::p("forceSyncIDs") as Boolean
+
+var id = if(forceId) "" else payload.Customer_SalesForceID_c
+
 output application/json
 ---
 vars.records ++ [
-	"Id": payload.Customer_SalesForceID_c,
+	"Id": id,
     "Name": payload.Customer_Name,
     "AccountNumber": payload.Customer_CustID,
     "BD_Epicor_ID__c": payload.Customer_CustNum,

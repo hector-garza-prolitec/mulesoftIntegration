@@ -1,0 +1,13 @@
+%dw 2.0
+
+type auto_51f6e746_fcab_448b_be92_a37e80c5462e_Output_Payload = Array<Account {"label": "Account",
+"typeId": "Account"}>
+type Account = {|
+  AccountNumber?: String {"typeId": "AccountNumber"}, 
+  BD_Epicor_ID__c?: String {"typeId": "BD_Epicor_ID__c"}, 
+  Id?: String {"typeId": "Id"}
+|} {"label": "Account",
+"typeId": "Account"}
+
+
+
