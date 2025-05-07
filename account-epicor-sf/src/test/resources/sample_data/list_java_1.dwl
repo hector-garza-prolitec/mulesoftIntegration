@@ -1,0 +1,20 @@
+
+%dw 2.0
+output application/json 
+---
+[
+  {
+    "Id": "001U900000NXVsqIAH",
+    "Name": "EntreX Inc TEST",
+    "AccountNumber": "50001",
+    "BD_Epicor_ID__c": "3073",
+    "BD_Terms__c": "30"
+  },
+  {
+    "Id": "001U900000NXVsqIAHH",
+    "Name": "EntreX Inc TEST 22",
+    "AccountNumber": "50001",
+    "BD_Epicor_ID__c": "3073",
+    "BD_Terms__c": "30"
+  }
+]

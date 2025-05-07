@@ -164,6 +164,10 @@ output application/json
 output application/java
 ---
 ""]]></ee:set-variable>
+				<ee:set-variable variableName="successRecords" ><![CDATA[%dw 2.0
+output application/json
+---
+[]]]></ee:set-variable>
 			</ee:variables>
 		</ee:transform>
 		<flow-ref doc:name="getEpicorRecords" doc:id="be0036b8-7583-4079-8645-752aa1ea73ca" name="getEpicorRecords"/>
@@ -181,6 +185,39 @@ payload.items
   filter ((item) -> item.successful)
   map ((item) -> "'" ++ item.id as String ++ "'")
   joinBy(",")]]></ee:set-variable>
+				<ee:set-variable variableName="successRecords" ><![CDATA[%dw 2.0
+
+var response = payload.items
+var successItems = response filter ((res) -> res.successful)
+
+var successRecords = vars.records filter((reg) -> 
+	(successItems map (x) -> x.payload.id) contains reg.Id
+)
+
+output application/json
+---
+successRecords
+    ]]></ee:set-variable>
+				<ee:set-variable variableName="badRecords" ><![CDATA[%dw 2.0
+
+var response = payload.items
+var failedItems = response filter ((res) -> res.successful == false)
+
+var failedRecords = vars.records filter((reg) -> 
+	(failedItems map (x) -> x.payload.id) contains reg.Id
+)
+
+output application/json
+---
+
+failedRecords map (x) -> {
+	(x), 
+	"ErrorMessage" : ((failedItems filter (f) -> f.payload.id == x.Id) 
+						map (err) -> err.message)
+						joinBy(";")
+	
+}
+]]></ee:set-variable>
 			</ee:variables>
 		</ee:transform>
 		<scatter-gather doc:name="Scatter-Gather" doc:id="bbab983b-6d2b-4128-97bc-5b35add2ca0a" >
@@ -195,12 +232,88 @@ payload.items
 	ids : vars.sfIDs
 }]]]></salesforce:parameters>
 						</salesforce:query>
+						<ee:transform doc:name="Transform Message" doc:id="9d885e0c-ea50-4aa0-beb3-aa0d079617e2">
+							<ee:message>
+								<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload 
+    map ((item) -> {
+    	"Company": "Prolitec",
+        "CustNum": item.BD_Epicor_ID__c,
+        "SalesForceID_c": item.Id
+    })]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+						<erp-bo-customer-svc:newupdateext-customers doc:name="NewUpdateExt_Customers" doc:id="1fa6d382-b257-4474-8746-dfb4cb6c9e86" config-ref="Erp_BO_CustomerSvc_Config"/>
+						<async doc:name="Processed" doc:id="cc1fe12c-0b3f-4fbb-9ad5-24cb0e903133">
+							<foreach doc:name="For Each" doc:id="4ba52e69-519f-4bad-8865-fcffc6e791bb" collection="#[vars.successRecords]">
+								<set-variable value="#[payload]" doc:name="successRecord" doc:id="1fb54452-6258-49a8-b993-435deb716299" variableName="successRecord" />
+								<os:retrieve doc:name="Retrieve" doc:id="1b7cd67f-5e55-478b-ad43-198bf201b186" key="#[vars.successRecord.BD_Epicor_ID__c]" />
+								<ee:transform doc:name="" doc:id="99e808e9-f99a-44d1-8d1a-d5105edd9198">
+								<ee:message>
+									<ee:set-payload><![CDATA[%dw 2.0
+var time = ((now() as LocalDateTime)
+    as String { format: "yyyy-MM-dd'T'HH:mm:ss" }
+    ++ "Z")
+    
+var Key4 = payload
+    
+output application/json
+---
+{
+	"Company": "PROLITEC",
+	"Key1": "Accounts",
+	"Key2": "Epicor->SF",
+	"Key3": vars.successRecord.BD_Epicor_ID__c,
+	"Key4": Key4,
+	"Character01": "Processed",
+	"ProcessedDateTime_c": time,
+	"TargetJSON_c": write(vars.successRecord, 'application/json')
+}]]></ee:set-payload>
+								</ee:message>
+							</ee:transform>
+								<http:request method="POST" doc:name="Request" doc:id="9ea55736-0ed8-4b97-b3c9-39acae6755b4" config-ref="HTTP_Request_configuration1" path="/PublishQueue" />
+						</foreach>
+						</async>
 					</when>
 		</choice>
 			</route>
 			<route >
 				<choice doc:name="Choice" doc:id="aa74c786-0c16-4bba-8f97-59e4f84622b5">
-			<when expression="#[!isEmpty(vars.badRecords)]"/>
+			<when expression="#[!isEmpty(vars.badRecords)]">
+						<async doc:name="Failed" doc:id="1c2a615a-718e-4101-9364-2bf32b61b59d" >
+							<foreach doc:name="For Each" doc:id="5a968255-c29c-43f7-9d98-e7a631f4e696" collection="#[vars.successRecords]" >
+								<set-variable value="#[payload]" doc:name="successRecord" doc:id="edd315bc-6bc0-4ab3-a6e6-2dab54fb450d" variableName="failedRecord" />
+								<os:retrieve doc:name="Retrieve" doc:id="67e951fb-4960-49b4-9a6a-a36edbfd41ed" key="#[vars.failedRecord.BD_Epicor_ID__c]" />
+								<ee:transform doc:name="" doc:id="362f9d48-5c7a-4ad7-9abd-7f5f0c0b1004" >
+									<ee:message >
+										<ee:set-payload ><![CDATA[%dw 2.0
+var time = ((now() as LocalDateTime)
+    as String { format: "yyyy-MM-dd'T'HH:mm:ss" }
+    ++ "Z")
+    
+var Key4 = payload
+    
+output application/json
+---
+{
+	"Company": "PROLITEC",
+	"Key1": "Accounts",
+	"Key2": "Epicor->SF",
+	"Key3": vars.failedRecord.BD_Epicor_ID__c,
+	"Key4": Key4,
+	"Character01": "Failed",
+	"ProcessedDateTime_c": time,
+	"LogMessages_c": vars.failedRecord.ErrorMessage,
+	"TargetJSON_c": write(vars.failedRecord, 'application/json')
+}]]></ee:set-payload>
+									</ee:message>
+								</ee:transform>
+								<http:request method="POST" doc:name="Request" doc:id="dde29506-0aa1-4479-8c09-6dd311f080c1" config-ref="HTTP_Request_configuration1" path="/PublishQueue" />
+							</foreach>
+						</async>
+					</when>
 		</choice>
 			</route>
 		</scatter-gather>
