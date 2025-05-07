@@ -1,0 +1,4 @@
+%dw 2.0
+
+type auto_5537599e_6b3e_4059_af86_26fbf34e6de6_Input_Variables_sfUserId = String | Null
+

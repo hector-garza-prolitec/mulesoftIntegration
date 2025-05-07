@@ -1,15 +1,149 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce" xmlns="http://www.mulesoft.org/schema/mule/core"
-	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
-http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd">
-	<flow name="account-epicor-sfFlow" doc:id="d2b5750a-8180-4616-8475-9527b97996df" >
+<mule xmlns:erp-bo-customer-svc="http://www.mulesoft.org/schema/mule/erp-bo-customer-svc" xmlns:os="http://www.mulesoft.org/schema/mule/os"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:vm="http://www.mulesoft.org/schema/mule/vm" xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+http://www.mulesoft.org/schema/mule/erp-bo-customer-svc http://www.mulesoft.org/schema/mule/erp-bo-customer-svc/current/mule-erp-bo-customer-svc.xsd">
+	<flow name="onNewRecord" doc:id="d2b5750a-8180-4616-8475-9527b97996df" >
 		<salesforce:new-object-listener doc:name="On New Object" doc:id="82688240-f669-477d-ab1c-2a21da24ca7b" config-ref="Salesforce_Config" objectType="Account">
 			<scheduling-strategy >
 				<fixed-frequency />
 			</scheduling-strategy>
 		</salesforce:new-object-listener>
-		<logger level="INFO" doc:name="Logger" doc:id="49b0b1c7-7990-47ae-8f29-f8459ab4d97b" message="Test local changed 2"/>
+		<set-variable value="#[payload]" doc:name="saveResponse" doc:id="a2ff8489-2286-49fa-b9d3-3ae77ee021ec" variableName="sfResponse"/>
+		<flow-ref doc:name="getIntegrationUser" doc:id="4e7ddd58-0876-4da4-b7c2-f69969eacb0a" name="getIntegrationUser"/>
+		<set-payload value="#[vars.sfResponse]" doc:name="Set Payload" doc:id="92740b9c-a61b-4e51-8129-78504047aa9f" />
+		<choice doc:name="Choice" doc:id="c65b8487-43d1-4735-823d-9b0df94ced48" >
+			<when expression="#[payload.LastModifiedById != vars.sfUserId]" >
+				<flow-ref doc:name="addToQueue" doc:id="d2c44201-9e30-40ba-a764-459d856f7c5a" name="addToQueue" />
+			</when>
+		</choice>
+	</flow>
+	<flow name="onModifiedRecord" doc:id="bd29c991-5717-4756-b65b-68dcbf952cb3" >
+		<salesforce:modified-object-listener doc:name="On Modified Object" doc:id="dd4c7259-2431-4121-a40d-948b83897968" config-ref="Salesforce_Config" objectType="Account">
+			<scheduling-strategy >
+				<fixed-frequency />
+			</scheduling-strategy>
+		</salesforce:modified-object-listener>
+		<set-variable value="#[payload]" doc:name="saveResponse" doc:id="73511d59-9622-44a5-a410-bfaf483880fb" variableName="sfResponse" />
+		<flow-ref doc:name="getIntegrationUser" doc:id="7799e3ca-158f-454a-b594-4455405c9a22" name="getIntegrationUser" />
+		<set-payload value="#[vars.sfResponse]" doc:name="Set Payload" doc:id="f8788476-6043-4ab1-b7f5-dd5ab088c0a7" />
+		<choice doc:name="Choice" doc:id="87b9d50a-b351-46ff-87f7-2874873fddee" >
+			<when expression="#[payload.LastModifiedById != vars.sfUserId]">
+				<flow-ref doc:name="addToQueue" doc:id="0690d376-3ced-40ab-9ece-7a5ce6db4ad4" name="addToQueue"/>
+			</when>
+		</choice>
+	</flow>
+	<sub-flow name="getIntegrationUser" doc:id="6a2a57c0-dbee-4e87-b7cd-0ab10c6d79eb" >
+		<salesforce:get-user-info doc:name="Get user info" doc:id="b8d52929-93eb-4052-9fa3-09f2cfb3f0db" config-ref="Salesforce_Config" />
+		<set-variable value="#[payload.userId]" doc:name="sfUserId" doc:id="dba3f858-ec11-49a7-a228-731d86da379a" variableName="sfUserId"/>
+	</sub-flow>
+	<sub-flow name="addToQueue" doc:id="5537599e-6b3e-4059-af86-26fbf34e6de6" >
+		<async doc:name="Schedule" doc:id="7382cba1-5cd6-474c-bcc4-e4d0f8a9b5a2" >
+			<ee:transform doc:name="Transform Message" doc:id="888a627a-b8a1-44c5-96a5-ce8cca0df939">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+var time = ((now() as LocalDateTime)
+    as String { format: "yyyy-MM-dd'T'HH:mm:ss" }
+    ++ "Z")
+    
+output application/json
+---
+{
+	"Company": "PROLITEC",
+	"Key1": "Accounts",
+	"Key2": "SF->Epicor",
+	"Key3": vars.sfResponse.Id,
+	"Character01": "Scheduled",
+	"TriggeredDateTime_c": time,
+	"SourceJSON_c": write(vars.sfResponse, 'application/json')
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+			<http:request method="POST" doc:name="Request" doc:id="b0cd9a08-d4e3-435d-9caa-bb19ecdaf624" config-ref="HTTP_Request_configuration1" path="/PublishQueue" />
+			<os:store doc:name="Store" doc:id="223347c5-32dd-4f1f-a7a8-5fa76edd1ad6" key="#[vars.sfResponse.Id]">
+			<os:value><![CDATA[#[payload.Key4]]]></os:value>
+		</os:store>
+		</async>
+		<vm:publish queueName="accountQueue" doc:name="Publish" doc:id="42eb481f-0326-47c5-8ffc-3c379bf850e8" config-ref="VM_Config" />
+	</sub-flow>
+	<sub-flow name="processQueue" doc:id="55e82c11-65a0-433a-88a5-2eafcc56a13f" >
+		<vm:consume queueName="accountQueue" doc:name="Consume" doc:id="a2a68bee-f409-48fd-a4d5-30be9c59bd67" config-ref="VM_Config" />
+		<flow-ref doc:name="lookupInEpicor" doc:id="e4b21d5d-2fe8-43d0-ab42-983c8d54e9aa" name="lookupInEpicor"/>
+		<ee:transform doc:name="Transform Message" doc:id="20235a35-d2ab-4742-8847-93d8c61df69b">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  "Company": "Prolitec",
+  "CustID": payload.AccountNumber,
+  "CustNum": payload.BD_Epicor_ID__c default vars.custNum,
+  "Name": payload.Name,
+  "TermsCode": payload.BD_Terms__c,
+  "SalesForceID_c": payload.Id
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<set-variable value="#[payload]" doc:name="targetJSON" doc:id="b7af6e3c-8cdc-4ab3-bda7-b3b479639e51" variableName="targetJSON"/>
+		<erp-bo-customer-svc:newupdateext-customers doc:name="NewUpdateExt_Customers" doc:id="f01e859a-ac11-4e15-b58f-180829d074e6" config-ref="Erp_BO_CustomerSvc_Config" />
+		<flow-ref doc:name="returnEpicorID" doc:id="7f199097-59d0-479d-9142-b091ae9e4ec8" name="returnEpicorID" />
+		<async doc:name="Processed" doc:id="c062171c-c3bf-44a1-9369-8998fc7654c7">
+			<os:retrieve doc:name="Retrieve" doc:id="abe085e8-5db2-4d7a-93cf-7e50e64cdb7f" key="#[vars.sfResponse.Id]" />
+			<ee:transform doc:name="" doc:id="354055da-a32a-4d68-b02f-89b99b8a7373">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+var time = ((now() as LocalDateTime)
+    as String { format: "yyyy-MM-dd'T'HH:mm:ss" }
+    ++ "Z")
+    
+var Key4 = payload
+    
+output application/json
+---
+{
+	"Company": "PROLITEC",
+	"Key1": "Accounts",
+	"Key2": "SF->Epicor",
+	"Key3": vars.sfResponse.Id,
+	"Key4": Key4,
+	"Character01": "Processed",
+	"ProcessedDateTime_c": time,
+	"TargetJSON_c": write(vars.targetJSON, 'application/json')
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+			<http:request method="POST" doc:name="Request" doc:id="bfaf1c44-72f6-4596-9816-68bade2acfaa" config-ref="HTTP_Request_configuration1" path="/PublishQueue" />
+		</async>
+	</sub-flow>
+	<flow name="returnEpicorID" doc:id="eb8945b2-56fa-47cc-ad20-4a3289151bb8" >
+		<ee:transform doc:name="Transform Message" doc:id="b2dd5f71-f7fc-4777-ab41-f26cef902c15" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	Id: vars.sfResponse.Id,
+	BD_Epicor_ID__c: payload.CustNum
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<salesforce:update type="Account" doc:name="Update" doc:id="5014745f-354b-4768-827a-eec1b9f0b57f" config-ref="Salesforce_Config"/>
+	</flow>
+	<flow name="lookupInEpicor" doc:id="afb1c3ee-daf9-4e15-bc18-019b800cce46" >
+		<erp-bo-customer-svc:getrows-customers doc:name="GetRows_Customers" doc:id="4f86f59d-7512-4b1f-a88a-75c5d6add33b" config-ref="Erp_BO_CustomerSvc_Config" select="CustNum, CustID" filter="#[&quot;CustID eq '&quot; ++ vars.sfResponse.AccountNumber as String ++ &quot;'&quot;]"/>
+		<choice doc:name="Choice" doc:id="6a459f61-1e44-4749-a72a-31da1d3049c1" >
+			<when expression="#[sizeOf(payload.value) &gt; 0]">
+				<set-variable value="#[payload.value[0].CustNum]" doc:name="custNum" doc:id="eaec290a-546f-478a-9462-d1abced1f4f5" variableName="custNum" />
+			</when>
+			<otherwise >
+				<set-variable doc:name="custNum" doc:id="b61c42a3-0f0a-42a2-9322-df2ef4c1b68a" variableName="custNum" value="#[0]"/>
+			</otherwise>
+		</choice>
 	</flow>
 </mule>

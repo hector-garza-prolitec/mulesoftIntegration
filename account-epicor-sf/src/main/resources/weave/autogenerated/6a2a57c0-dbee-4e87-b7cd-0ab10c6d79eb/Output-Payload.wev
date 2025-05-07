@@ -1,0 +1,30 @@
+%dw 2.0
+
+type auto_6a2a57c0_dbee_4e87_b7cd_0ab10c6d79eb_Output_Payload = {|
+  accessibilityMode?: Boolean {"typeId": "boolean"}, 
+  currencySymbol?: String, 
+  orgAttachmentFileSizeLimit?: Number, 
+  orgDefaultCurrencyIsoCode?: String, 
+  orgDefaultCurrencyLocale?: String, 
+  orgDisallowHtmlAttachments?: Boolean {"typeId": "boolean"}, 
+  orgHasPersonAccounts?: Boolean {"typeId": "boolean"}, 
+  organizationId?: String, 
+  organizationMultiCurrency?: Boolean {"typeId": "boolean"}, 
+  organizationName?: String, 
+  profileId?: String, 
+  roleId?: String, 
+  sessionSecondsValid?: Number, 
+  userDefaultCurrencyIsoCode?: String, 
+  userEmail?: String, 
+  userFullName?: String, 
+  userId?: String, 
+  userLanguage?: String, 
+  userLocale?: String, 
+  userName?: String, 
+  userTimeZone?: String, 
+  userType?: String, 
+  userUiSkin?: String
+|} {"class": "org.mule.extension.salesforce.api.utility.GetUserInfoResult",
+"typeAlias": "GetUserInfoResult",
+"typeId": "org.mule.extension.salesforce.api.utility.GetUserInfoResult"}
+
