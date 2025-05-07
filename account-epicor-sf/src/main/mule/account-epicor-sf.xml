@@ -1,14 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns:erp-bo-customer-svc="http://www.mulesoft.org/schema/mule/erp-bo-customer-svc" xmlns:os="http://www.mulesoft.org/schema/mule/os"
-	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
-	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:vm="http://www.mulesoft.org/schema/mule/vm" xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+<mule xmlns:businessactivityquery-mule-customer="http://www.mulesoft.org/schema/mule/businessactivityquery-mule-customer" xmlns:erp-bo-customer-svc="http://www.mulesoft.org/schema/mule/erp-bo-customer-svc"
+	xmlns:os="http://www.mulesoft.org/schema/mule/os"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:vm="http://www.mulesoft.org/schema/mule/vm" xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
 http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
 http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd
 http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
 http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
 http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
-http://www.mulesoft.org/schema/mule/erp-bo-customer-svc http://www.mulesoft.org/schema/mule/erp-bo-customer-svc/current/mule-erp-bo-customer-svc.xsd">
+http://www.mulesoft.org/schema/mule/erp-bo-customer-svc http://www.mulesoft.org/schema/mule/erp-bo-customer-svc/current/mule-erp-bo-customer-svc.xsd
+http://www.mulesoft.org/schema/mule/businessactivityquery-mule-customer http://www.mulesoft.org/schema/mule/businessactivityquery-mule-customer/current/mule-businessactivityquery-mule-customer.xsd">
 	<flow name="onNewRecord" doc:id="d2b5750a-8180-4616-8475-9527b97996df" >
 		<salesforce:new-object-listener doc:name="On New Object" doc:id="82688240-f669-477d-ab1c-2a21da24ca7b" config-ref="Salesforce_Config" objectType="Account">
 			<scheduling-strategy >
@@ -146,4 +147,111 @@ output application/json
 			</otherwise>
 		</choice>
 	</flow>
+	<sub-flow name="epicorToSF" doc:id="9e6a445a-b2ab-4d0f-b471-305bc4e7f3eb" >
+		<ee:transform doc:name="Initialize Variables" doc:id="3278e6c3-a958-4aa1-95bf-4c9bb7f5eb8c" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="records" ><![CDATA[%dw 2.0
+output application/json
+---
+[]]]></ee:set-variable>
+				<ee:set-variable variableName="badRecords" ><![CDATA[%dw 2.0
+output application/json
+---
+[]]]></ee:set-variable>
+				<ee:set-variable variableName="sfIDs" ><![CDATA[%dw 2.0
+output application/java
+---
+""]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<flow-ref doc:name="getEpicorRecords" doc:id="be0036b8-7583-4079-8645-752aa1ea73ca" name="getEpicorRecords"/>
+		<salesforce:upsert doc:name="Upsert" doc:id="67690e39-1edc-49a5-8cb8-ee10f8d284f2" config-ref="Salesforce_Config" objectType="Account" externalIdFieldName="BD_Epicor_ID__c">
+			<salesforce:records><![CDATA[#[vars.records]]]></salesforce:records>
+		</salesforce:upsert>
+		<ee:transform doc:name="Transform Message" doc:id="8fa9efc7-c810-4e4e-be9d-7b1faa3a5ff8">
+			<ee:message>
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="sfIDs" ><![CDATA[%dw 2.0
+output application/java
+---
+payload.items
+  filter ((item) -> item.successful)
+  map ((item) -> "'" ++ item.id as String ++ "'")
+  joinBy(",")]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<scatter-gather doc:name="Scatter-Gather" doc:id="bbab983b-6d2b-4128-97bc-5b35add2ca0a" >
+			<route >
+				<choice doc:name="Choice" doc:id="8e1e30e1-5770-4263-939d-9081de9fe3e8">
+			<when expression="#[vars.sfIDs != null]">
+						<salesforce:query doc:name="Get SF Records" doc:id="dea0c4dd-f2ce-419f-a084-17094e1744ae" config-ref="Salesforce_Config">
+							<salesforce:salesforce-query ><![CDATA[Select Id, BD_Epicor_ID__c FROM Account WHERE Id IN(:ids)]]></salesforce:salesforce-query>
+							<salesforce:parameters ><![CDATA[#[output application/java
+---
+{
+	ids : vars.sfIDs
+}]]]></salesforce:parameters>
+						</salesforce:query>
+					</when>
+		</choice>
+			</route>
+			<route >
+				<choice doc:name="Choice" doc:id="aa74c786-0c16-4bba-8f97-59e4f84622b5">
+			<when expression="#[!isEmpty(vars.badRecords)]"/>
+		</choice>
+			</route>
+		</scatter-gather>
+	</sub-flow>
+	<sub-flow name="getEpicorRecords" doc:id="69590a58-e8fc-4458-9e1c-8e5d201cc90b" >
+		<businessactivityquery-mule-customer:execute doc:name="Execute" doc:id="34baed77-2ce0-4f07-b7cb-95bb1103dce9" config-ref="Business_activity_query__Mule_Customer__Config" x-api-key="${epicorAPIKey}" top="${odata.Top}" count="true"/>
+		<foreach doc:name="For Each" doc:id="4a86c56d-3fb9-4701-a959-914be8310665" collection="#[payload.value]">
+			<set-variable value="#[payload]" doc:name="epicorResponse" doc:id="331510a1-9653-4fc4-a015-b5127c55e119" variableName="epicorResponse"/>
+			<ee:transform doc:name="Transform Message" doc:id="9e27fa5f-2cff-4d37-8e3c-3a2b7d2f2eba">
+			<ee:message>
+			</ee:message>
+				<ee:variables >
+					<ee:set-variable variableName="records" ><![CDATA[%dw 2.0
+output application/json
+---
+vars.records ++ [
+	"Id": payload.Customer_SalesForceID_c,
+    "Name": payload.Customer_Name,
+    "AccountNumber": payload.Customer_CustID,
+    "BD_Epicor_ID__c": payload.Customer_CustNum,
+    "BD_Terms__c": payload.Customer_TermsCode
+]
+]]></ee:set-variable>
+				</ee:variables>
+		</ee:transform>
+			<async doc:name="Schedule" doc:id="27a12cec-602f-47f2-8979-9109678f280e" >
+				<ee:transform doc:name="Transform Message" doc:id="34d405df-3291-4677-bb10-9c92ecec45c9" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+var time = ((now() as LocalDateTime)
+    as String { format: "yyyy-MM-dd'T'HH:mm:ss" }
+    ++ "Z")
+    
+output application/json
+---
+{
+	"Company": "PROLITEC",
+	"Key1": "Accounts",
+	"Key2": "Epicor->SF",
+	"Key3": vars.epicorResponse.Customer_CustNum,
+	"Character01": "Scheduled",
+	"TriggeredDateTime_c": time,
+	"SourceJSON_c": write(vars.epicorResponse, 'application/json')
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<http:request method="POST" doc:name="Request" doc:id="9774a0dc-d54e-4b6e-8ae0-288d8882904f" config-ref="HTTP_Request_configuration1" path="/PublishQueue" />
+				<os:store doc:name="Store" doc:id="e730e763-e044-433a-bb37-fc8026ad95df" key="#[vars.epicorResponse.Customer_CustNum]" >
+					<os:value ><![CDATA[#[payload.Key4]]]></os:value>
+				</os:store>
+			</async>
+		</foreach>
+	</sub-flow>
 </mule>
