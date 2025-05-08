@@ -1,0 +1,4 @@
+%dw 2.0
+
+type auto_9e6a445a_b2ab_4d0f_b471_305bc4e7f3eb_Output_Variables_sfIDs = String | Null
+

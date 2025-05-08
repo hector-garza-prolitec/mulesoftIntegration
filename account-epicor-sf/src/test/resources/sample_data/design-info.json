@@ -6,6 +6,9 @@
     },
     "9d885e0c-ea50-4aa0-beb3-aa0d079617e2": {
       "payload": "sample_data/list_account.dwl"
+    },
+    "d409e15c-0cf5-4b45-91e2-2f30e112f19a": {
+      "attributes": "sample_data/httprequestattributes.dwl"
     }
   }
 }

@@ -10,6 +10,25 @@ http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/
 http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
 http://www.mulesoft.org/schema/mule/erp-bo-customer-svc http://www.mulesoft.org/schema/mule/erp-bo-customer-svc/current/mule-erp-bo-customer-svc.xsd
 http://www.mulesoft.org/schema/mule/businessactivityquery-mule-customer http://www.mulesoft.org/schema/mule/businessactivityquery-mule-customer/current/mule-businessactivityquery-mule-customer.xsd">
+	<flow name="mainFlow" doc:id="cb758a36-c969-49f7-9fd5-8ca0a1e84763" >
+		<scheduler doc:name="Scheduler" doc:id="3c308bf4-ac16-4273-a089-263c1020eaf7" >
+			<scheduling-strategy >
+				<fixed-frequency frequency="1" timeUnit="MINUTES"/>
+			</scheduling-strategy>
+		</scheduler>
+		<ee:transform doc:name="Initialize Vars" doc:id="da88d08a-ba11-40e6-89ef-5924ed63f5b5" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="isBeingReprocessed" ><![CDATA[%dw 2.0
+output application/java
+---
+false]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<flow-ref doc:name="SFToEpicor" doc:id="b1382382-6f50-4b9d-b9ea-37398a0437c0" name="processQueue"/>
+		<flow-ref doc:name="EpicorToSF" doc:id="74ea67b6-3f14-42cf-a4d5-da9ad195d591" name="epicorToSF"/>
+	</flow>
 	<flow name="onNewRecord" doc:id="d2b5750a-8180-4616-8475-9527b97996df" >
 		<salesforce:new-object-listener doc:name="On New Object" doc:id="82688240-f669-477d-ab1c-2a21da24ca7b" config-ref="Salesforce_Config" objectType="Account">
 			<scheduling-strategy >
@@ -45,6 +64,11 @@ http://www.mulesoft.org/schema/mule/businessactivityquery-mule-customer http://w
 		<set-variable value="#[payload.userId]" doc:name="sfUserId" doc:id="dba3f858-ec11-49a7-a228-731d86da379a" variableName="sfUserId"/>
 	</sub-flow>
 	<sub-flow name="addToQueue" doc:id="5537599e-6b3e-4059-af86-26fbf34e6de6" >
+		<choice doc:name="Choice" doc:id="db1b7e46-0f01-4fe3-9180-3b376726aced">
+			<when expression="#[!vars.isBeingReprocessed]">
+				<vm:publish queueName="accountQueue" doc:name="Publish" doc:id="42eb481f-0326-47c5-8ffc-3c379bf850e8" config-ref="VM_Config" />
+			</when>
+		</choice>
 		<async doc:name="Schedule" doc:id="7382cba1-5cd6-474c-bcc4-e4d0f8a9b5a2" >
 			<ee:transform doc:name="Transform Message" doc:id="888a627a-b8a1-44c5-96a5-ce8cca0df939">
 			<ee:message>
@@ -71,10 +95,16 @@ output application/json
 			<os:value><![CDATA[#[payload.Key4]]]></os:value>
 		</os:store>
 		</async>
-		<vm:publish queueName="accountQueue" doc:name="Publish" doc:id="42eb481f-0326-47c5-8ffc-3c379bf850e8" config-ref="VM_Config" />
 	</sub-flow>
 	<flow name="processQueue" doc:id="849349c1-6991-421d-a2f0-f3489380c3e0" >
-		<vm:consume queueName="accountQueue" doc:name="Consume" doc:id="a2a68bee-f409-48fd-a4d5-30be9c59bd67" config-ref="VM_Config" />
+		<choice doc:name="Choice" doc:id="6628f4e9-781d-48c6-8f3d-3eeca8b300cd" >
+			<when expression="#[!vars.isBeingReprocessed]">
+				<vm:consume queueName="accountQueue" doc:name="Consume" doc:id="a2a68bee-f409-48fd-a4d5-30be9c59bd67" config-ref="VM_Config" />
+			</when>
+			<otherwise >
+				<set-payload value="#[vars.sfResponse]" doc:name="Set Payload" doc:id="9f72360c-1ff7-4df2-8056-db8ca4312592" />
+			</otherwise>
+		</choice>
 		<flow-ref doc:name="lookupInEpicor" doc:id="e4b21d5d-2fe8-43d0-ab42-983c8d54e9aa" name="lookupInEpicor" />
 		<ee:transform doc:name="Transform Message" doc:id="20235a35-d2ab-4742-8847-93d8c61df69b">
 			<ee:message>
@@ -431,4 +461,24 @@ output application/json
 			</async>
 		</foreach>
 	</sub-flow>
+	<flow name="reprocess-SFToEpicor" doc:id="954ccbbe-f4bc-4ecd-9fe9-04864e86fd03" >
+		<http:listener doc:name="Listener" doc:id="22efc062-5968-46cb-a0f8-6d99ec97e6da" config-ref="HTTP_Listener_config_2" path="/reprocess/SF_Epicor"/>
+		<set-variable value="#[true]" doc:name="Set Variable" doc:id="21b3464c-7ed0-4ce9-8fa9-415ffc6f693c" variableName="isBeingReprocessed"/>
+		<ee:transform doc:name="Transform Message" doc:id="d409e15c-0cf5-4b45-91e2-2f30e112f19a" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+var ids = attributes.queryParams
+
+output application/json
+---
+ids.accountId splitBy(',')
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<foreach doc:name="For Each" doc:id="09c0bd48-84e8-40fe-82d7-d071133d7e3a" collection="#[payload]">
+			<set-variable value="#[payload]" doc:name="Set Variable" doc:id="b72df200-8b77-4f5f-91a3-9f8263301530" variableName="sfResponse"/>
+			<flow-ref doc:name="addToQueue" doc:id="aead1cf8-b505-4985-9220-899d02db1b47" name="addToQueue" />
+			<flow-ref doc:name="processQueue" doc:id="cd9e6907-5caa-4d0a-b3ed-d85b4cadde03" name="processQueue" />
+		</foreach>
+	</flow>
 </mule>
