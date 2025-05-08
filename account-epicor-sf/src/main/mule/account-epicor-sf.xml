@@ -24,6 +24,18 @@ http://www.mulesoft.org/schema/mule/businessactivityquery-mule-customer http://w
 output application/java
 ---
 false]]></ee:set-variable>
+				<ee:set-variable variableName="itemsReprocessed" ><![CDATA[%dw 2.0
+output application/java
+---
+0]]></ee:set-variable>
+				<ee:set-variable variableName="itemsSucceeded" ><![CDATA[%dw 2.0
+output application/java
+---
+0]]></ee:set-variable>
+				<ee:set-variable variableName="itemsFailed" ><![CDATA[%dw 2.0
+output application/java
+---
+0]]></ee:set-variable>
 			</ee:variables>
 		</ee:transform>
 		<flow-ref doc:name="SFToEpicor" doc:id="b1382382-6f50-4b9d-b9ea-37398a0437c0" name="processQueue"/>
@@ -83,7 +95,7 @@ output application/json
 	"Company": "PROLITEC",
 	"Key1": "Accounts",
 	"Key2": "SF->Epicor",
-	"Key3": vars.sfResponse.Id,
+	"Key3": vars.sfResponse.Id as String,
 	"Character01": "Scheduled",
 	"TriggeredDateTime_c": time,
 	"SourceJSON_c": write(vars.sfResponse, 'application/json')
@@ -124,6 +136,7 @@ output application/json
 		<set-variable value="#[payload]" doc:name="targetJSON" doc:id="b7af6e3c-8cdc-4ab3-bda7-b3b479639e51" variableName="targetJSON" />
 		<erp-bo-customer-svc:newupdateext-customers doc:name="NewUpdateExt_Customers" doc:id="f01e859a-ac11-4e15-b58f-180829d074e6" config-ref="Erp_BO_CustomerSvc_Config" />
 		<flow-ref doc:name="returnEpicorID" doc:id="7f199097-59d0-479d-9142-b091ae9e4ec8" name="returnEpicorID" />
+		<set-variable value="#[vars.itemsSucceeded as Number + 1]" doc:name="itemsSucceeded" doc:id="4b477291-01ec-48cb-b716-3610331982f8" variableName="itemsSucceeded"/>
 		<async doc:name="Processed" doc:id="c062171c-c3bf-44a1-9369-8998fc7654c7">
 			<os:retrieve doc:name="Retrieve" doc:id="abe085e8-5db2-4d7a-93cf-7e50e64cdb7f" key="#[vars.sfResponse.Id]" />
 			<ee:transform doc:name="" doc:id="354055da-a32a-4d68-b02f-89b99b8a7373">
@@ -141,8 +154,8 @@ output application/json
 	"Company": "PROLITEC",
 	"Key1": "Accounts",
 	"Key2": "SF->Epicor",
-	"Key3": vars.sfResponse.Id,
-	"Key4": Key4,
+	"Key3": vars.sfResponse.Id as String,
+	"Key4": Key4 as String,
 	"Character01": "Processed",
 	"ProcessedDateTime_c": time,
 	"TargetJSON_c": write(vars.targetJSON, 'application/json')
@@ -153,10 +166,11 @@ output application/json
 			<os:remove doc:name="Remove" doc:id="e540c545-4466-4d1b-b0e6-6a68c6911574" key="#[vars.sfResponse.Id]"/>
 		</async>
 		<error-handler >
-			<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="4d4d4d2a-6526-4ae3-a2a5-a12ade558f2e" type="VM:EMPTY_QUEUE">
+			<on-error-continue enableNotifications="true" logException="false" doc:name="On Error Continue" doc:id="4d4d4d2a-6526-4ae3-a2a5-a12ade558f2e" type="VM:EMPTY_QUEUE">
 				<logger level="INFO" doc:name="Logger" doc:id="73155340-fc08-4c5e-8455-5859aeba5446" message="No messages in queue"/>
 			</on-error-continue>
 			<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="14fe9296-46e7-4939-8bb0-2267b8a73de0" type="ERP-BO-CUSTOMER-SVC:BAD_REQUEST, ERP-BO-CUSTOMER-SVC:CONNECTIVITY, ERP-BO-CUSTOMER-SVC:FORBIDDEN, ERP-BO-CUSTOMER-SVC:INTERNAL_SERVER_ERROR, ERP-BO-CUSTOMER-SVC:METHOD_NOT_ALLOWED, ERP-BO-CUSTOMER-SVC:NOT_ACCEPTABLE, ERP-BO-CUSTOMER-SVC:NOT_FOUND, ERP-BO-CUSTOMER-SVC:PARSING, ERP-BO-CUSTOMER-SVC:RETRY_EXHAUSTED, ERP-BO-CUSTOMER-SVC:SECURITY, ERP-BO-CUSTOMER-SVC:SERVICE_UNAVAILABLE, ERP-BO-CUSTOMER-SVC:TIMEOUT, ERP-BO-CUSTOMER-SVC:TOO_MANY_REQUESTS, ERP-BO-CUSTOMER-SVC:UNAUTHORIZED, ERP-BO-CUSTOMER-SVC:UNSUPPORTED_MEDIA_TYPE">
+				<set-variable value="#[vars.itemsFailed as Number + 1]" doc:name="itemsFailed" doc:id="c735976b-b264-46cf-8261-744e641804e4" variableName="itemsFailed" />
 				<async doc:name="Failed" doc:id="a7d7f137-41bd-4a11-b906-8023839f9936" >
 					<os:retrieve doc:name="Retrieve" doc:id="3c22473a-48a3-4236-8a72-dd6d4fd6ed73" key="#[vars.sfResponse.Id]" />
 					<ee:transform doc:name="" doc:id="bb9256dc-0561-443a-a524-01abb1977a29" >
@@ -174,8 +188,8 @@ output application/json
 	"Company": "PROLITEC",
 	"Key1": "Accounts",
 	"Key2": "SF->Epicor",
-	"Key3": vars.sfResponse.Id,
-	"Key4": Key4,
+	"Key3": vars.sfResponse.Id as String,
+	"Key4": Key4 as String,
 	"Character01": "Failed",
 	"ProcessedDateTime_c": time,
 	"LogMessages_c": write(error.errorMessage.payload, 'application/json'),
@@ -224,7 +238,7 @@ output application/json
 }]]]></salesforce:parameters>
 		</salesforce:query>
 		<choice doc:name="Choice" doc:id="25dbff0d-6694-491e-9dba-ff394513f392" >
-			<when expression="#[sizeOf(payload.value) &gt; 0]" >
+			<when expression="#[payload != null]" >
 				<set-variable value="#[payload[0].Id]" doc:name="sfID" doc:id="891b0d96-e8dc-4078-847f-0d68f5af6c4e" variableName="sfID" />
 			</when>
 			<otherwise >
@@ -350,8 +364,8 @@ output application/json
 	"Company": "PROLITEC",
 	"Key1": "Accounts",
 	"Key2": "Epicor->SF",
-	"Key3": vars.successRecord.BD_Epicor_ID__c,
-	"Key4": Key4,
+	"Key3": vars.successRecord.BD_Epicor_ID__c as String,
+	"Key4": Key4 as String,
 	"Character01": "Processed",
 	"ProcessedDateTime_c": time,
 	"TargetJSON_c": write(vars.successRecord, 'application/json')
@@ -387,8 +401,8 @@ output application/json
 	"Company": "PROLITEC",
 	"Key1": "Accounts",
 	"Key2": "Epicor->SF",
-	"Key3": vars.failedRecord.BD_Epicor_ID__c,
-	"Key4": Key4,
+	"Key3": vars.failedRecord.BD_Epicor_ID__c as String,
+	"Key4": Key4 as String,
 	"Character01": "Failed",
 	"ProcessedDateTime_c": time,
 	"LogMessages_c": vars.failedRecord.ErrorMessage,
@@ -407,7 +421,7 @@ output application/json
 	</sub-flow>
 	<sub-flow name="getEpicorRecords" doc:id="69590a58-e8fc-4458-9e1c-8e5d201cc90b" >
 		<set-variable value="#[[]]" doc:name="Set Variable" doc:id="71881485-7ea5-40c3-ac62-5535f616d46b" variableName="records"/>
-		<businessactivityquery-mule-customer:execute doc:name="Execute" doc:id="34baed77-2ce0-4f07-b7cb-95bb1103dce9" config-ref="Business_activity_query__Mule_Customer__Config" x-api-key="${epicorAPIKey}" top="${odata.Top}" count="true"/>
+		<businessactivityquery-mule-customer:execute doc:name="Execute" doc:id="34baed77-2ce0-4f07-b7cb-95bb1103dce9" config-ref="Business_activity_query__Mule_Customer__Config" x-api-key="${epicorAPIKey}" top="${odata.Top}" count="true" filter="#[&quot;Customer_ChangedBy ne '&quot; ++ Mule::p(&quot;secure::epicorUserName&quot;) as String ++ &quot;'&quot;]"/>
 		<foreach doc:name="For Each" doc:id="4a86c56d-3fb9-4701-a959-914be8310665" collection="#[payload.value]">
 			<set-variable value="#[payload]" doc:name="epicorResponse" doc:id="331510a1-9653-4fc4-a015-b5127c55e119" variableName="epicorResponse"/>
 			<flow-ref doc:name="lookupInSF" doc:id="c2d8c02c-a495-4900-a524-fdfce7a3e5d2" name="lookupInSF"/>
@@ -447,7 +461,7 @@ output application/json
 	"Company": "PROLITEC",
 	"Key1": "Accounts",
 	"Key2": "Epicor->SF",
-	"Key3": vars.epicorResponse.Customer_CustNum,
+	"Key3": vars.epicorResponse.Customer_CustNum as String,
 	"Character01": "Scheduled",
 	"TriggeredDateTime_c": time,
 	"SourceJSON_c": write(vars.epicorResponse, 'application/json')
@@ -463,8 +477,8 @@ output application/json
 	</sub-flow>
 	<flow name="reprocess-SFToEpicor" doc:id="954ccbbe-f4bc-4ecd-9fe9-04864e86fd03" >
 		<http:listener doc:name="Listener" doc:id="22efc062-5968-46cb-a0f8-6d99ec97e6da" config-ref="HTTP_Listener_config_2" path="/reprocess/SF_Epicor"/>
-		<set-variable value="#[true]" doc:name="Set Variable" doc:id="21b3464c-7ed0-4ce9-8fa9-415ffc6f693c" variableName="isBeingReprocessed"/>
-		<ee:transform doc:name="Transform Message" doc:id="d409e15c-0cf5-4b45-91e2-2f30e112f19a" >
+		<set-variable value="#[true]" doc:name="isBeingReprocessed" doc:id="21b3464c-7ed0-4ce9-8fa9-415ffc6f693c" variableName="isBeingReprocessed"/>
+		<ee:transform doc:name="Initialize Vars" doc:id="d409e15c-0cf5-4b45-91e2-2f30e112f19a" >
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
 var ids = attributes.queryParams
@@ -474,11 +488,38 @@ output application/json
 ids.accountId splitBy(',')
 ]]></ee:set-payload>
 			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="itemsReprocessed" ><![CDATA[%dw 2.0
+output application/java
+---
+0]]></ee:set-variable>
+				<ee:set-variable variableName="itemsSucceeded" ><![CDATA[%dw 2.0
+output application/java
+---
+0]]></ee:set-variable>
+				<ee:set-variable variableName="itemsFailed" ><![CDATA[%dw 2.0
+output application/java
+---
+0]]></ee:set-variable>
+			</ee:variables>
 		</ee:transform>
 		<foreach doc:name="For Each" doc:id="09c0bd48-84e8-40fe-82d7-d071133d7e3a" collection="#[payload]">
-			<set-variable value="#[payload]" doc:name="Set Variable" doc:id="b72df200-8b77-4f5f-91a3-9f8263301530" variableName="sfResponse"/>
+			<set-variable value="#[payload]" doc:name="sfResponse" doc:id="b72df200-8b77-4f5f-91a3-9f8263301530" variableName="sfResponse"/>
+			<set-variable value="#[vars.itemsReprocessed as Number + 1]" doc:name="itemsReprocessed" doc:id="e5a2f26e-31f4-400c-8636-a0c11c0cfcb4" variableName="itemsReprocessed"/>
 			<flow-ref doc:name="addToQueue" doc:id="aead1cf8-b505-4985-9220-899d02db1b47" name="addToQueue" />
 			<flow-ref doc:name="processQueue" doc:id="cd9e6907-5caa-4d0a-b3ed-d85b4cadde03" name="processQueue" />
 		</foreach>
+		<ee:transform doc:name="Transform Message" doc:id="e9e1b385-9948-4a01-904f-7c802769529b" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"ItemsReprocessed": vars.itemsReprocessed,
+	"ItemsSucceded": vars.itemsSucceeded,
+	"ItemsFailed": vars.itemsFailed
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
 	</flow>
 </mule>
