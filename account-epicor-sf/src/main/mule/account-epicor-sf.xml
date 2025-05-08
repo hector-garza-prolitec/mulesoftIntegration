@@ -73,9 +73,9 @@ output application/json
 		</async>
 		<vm:publish queueName="accountQueue" doc:name="Publish" doc:id="42eb481f-0326-47c5-8ffc-3c379bf850e8" config-ref="VM_Config" />
 	</sub-flow>
-	<sub-flow name="processQueue" doc:id="55e82c11-65a0-433a-88a5-2eafcc56a13f" >
+	<flow name="processQueue" doc:id="849349c1-6991-421d-a2f0-f3489380c3e0" >
 		<vm:consume queueName="accountQueue" doc:name="Consume" doc:id="a2a68bee-f409-48fd-a4d5-30be9c59bd67" config-ref="VM_Config" />
-		<flow-ref doc:name="lookupInEpicor" doc:id="e4b21d5d-2fe8-43d0-ab42-983c8d54e9aa" name="lookupInEpicor"/>
+		<flow-ref doc:name="lookupInEpicor" doc:id="e4b21d5d-2fe8-43d0-ab42-983c8d54e9aa" name="lookupInEpicor" />
 		<ee:transform doc:name="Transform Message" doc:id="20235a35-d2ab-4742-8847-93d8c61df69b">
 			<ee:message>
 				<ee:set-payload><![CDATA[%dw 2.0
@@ -91,7 +91,7 @@ output application/json
 }]]></ee:set-payload>
 			</ee:message>
 		</ee:transform>
-		<set-variable value="#[payload]" doc:name="targetJSON" doc:id="b7af6e3c-8cdc-4ab3-bda7-b3b479639e51" variableName="targetJSON"/>
+		<set-variable value="#[payload]" doc:name="targetJSON" doc:id="b7af6e3c-8cdc-4ab3-bda7-b3b479639e51" variableName="targetJSON" />
 		<erp-bo-customer-svc:newupdateext-customers doc:name="NewUpdateExt_Customers" doc:id="f01e859a-ac11-4e15-b58f-180829d074e6" config-ref="Erp_BO_CustomerSvc_Config" />
 		<flow-ref doc:name="returnEpicorID" doc:id="7f199097-59d0-479d-9142-b091ae9e4ec8" name="returnEpicorID" />
 		<async doc:name="Processed" doc:id="c062171c-c3bf-44a1-9369-8998fc7654c7">
@@ -120,8 +120,45 @@ output application/json
 			</ee:message>
 		</ee:transform>
 			<http:request method="POST" doc:name="Request" doc:id="bfaf1c44-72f6-4596-9816-68bade2acfaa" config-ref="HTTP_Request_configuration1" path="/PublishQueue" />
+			<os:remove doc:name="Remove" doc:id="e540c545-4466-4d1b-b0e6-6a68c6911574" key="#[vars.sfResponse.Id]"/>
 		</async>
-	</sub-flow>
+		<error-handler >
+			<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="4d4d4d2a-6526-4ae3-a2a5-a12ade558f2e" type="VM:EMPTY_QUEUE">
+				<logger level="INFO" doc:name="Logger" doc:id="73155340-fc08-4c5e-8455-5859aeba5446" message="No messages in queue"/>
+			</on-error-continue>
+			<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="14fe9296-46e7-4939-8bb0-2267b8a73de0" type="ERP-BO-CUSTOMER-SVC:BAD_REQUEST, ERP-BO-CUSTOMER-SVC:CONNECTIVITY, ERP-BO-CUSTOMER-SVC:FORBIDDEN, ERP-BO-CUSTOMER-SVC:INTERNAL_SERVER_ERROR, ERP-BO-CUSTOMER-SVC:METHOD_NOT_ALLOWED, ERP-BO-CUSTOMER-SVC:NOT_ACCEPTABLE, ERP-BO-CUSTOMER-SVC:NOT_FOUND, ERP-BO-CUSTOMER-SVC:PARSING, ERP-BO-CUSTOMER-SVC:RETRY_EXHAUSTED, ERP-BO-CUSTOMER-SVC:SECURITY, ERP-BO-CUSTOMER-SVC:SERVICE_UNAVAILABLE, ERP-BO-CUSTOMER-SVC:TIMEOUT, ERP-BO-CUSTOMER-SVC:TOO_MANY_REQUESTS, ERP-BO-CUSTOMER-SVC:UNAUTHORIZED, ERP-BO-CUSTOMER-SVC:UNSUPPORTED_MEDIA_TYPE">
+				<async doc:name="Failed" doc:id="a7d7f137-41bd-4a11-b906-8023839f9936" >
+					<os:retrieve doc:name="Retrieve" doc:id="3c22473a-48a3-4236-8a72-dd6d4fd6ed73" key="#[vars.sfResponse.Id]" />
+					<ee:transform doc:name="" doc:id="bb9256dc-0561-443a-a524-01abb1977a29" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+var time = ((now() as LocalDateTime)
+    as String { format: "yyyy-MM-dd'T'HH:mm:ss" }
+    ++ "Z")
+    
+var Key4 = payload
+    
+output application/json
+---
+{
+	"Company": "PROLITEC",
+	"Key1": "Accounts",
+	"Key2": "SF->Epicor",
+	"Key3": vars.sfResponse.Id,
+	"Key4": Key4,
+	"Character01": "Failed",
+	"ProcessedDateTime_c": time,
+	"LogMessages_c": write(error.errorMessage.payload, 'application/json'),
+	"TargetJSON_c": write(vars.targetJSON, 'application/json')
+}]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+					<http:request method="POST" doc:name="Request" doc:id="b664c728-b373-4f01-96a4-3bf23bffc4d4" config-ref="HTTP_Request_configuration1" path="/PublishQueue" />
+					<os:remove doc:name="Remove" doc:id="40981c0b-2ecc-40db-b2b3-a5cf76740ed8" key="#[vars.sfResponse.Id]" />
+				</async>
+			</on-error-continue>
+		</error-handler>
+	</flow>
 	<flow name="returnEpicorID" doc:id="eb8945b2-56fa-47cc-ad20-4a3289151bb8" >
 		<ee:transform doc:name="Transform Message" doc:id="b2dd5f71-f7fc-4777-ab41-f26cef902c15" >
 			<ee:message >
@@ -292,6 +329,7 @@ output application/json
 								</ee:message>
 							</ee:transform>
 								<http:request method="POST" doc:name="Request" doc:id="9ea55736-0ed8-4b97-b3c9-39acae6755b4" config-ref="HTTP_Request_configuration1" path="/PublishQueue" />
+								<os:remove doc:name="Remove" doc:id="240f8f7b-9478-45d8-81fc-b47d07a90344" key="#[vars.successRecord.BD_Epicor_ID__c]"/>
 						</foreach>
 						</async>
 					</when>
@@ -301,8 +339,8 @@ output application/json
 				<choice doc:name="Choice" doc:id="aa74c786-0c16-4bba-8f97-59e4f84622b5">
 			<when expression="#[!isEmpty(vars.badRecords)]">
 						<async doc:name="Failed" doc:id="1c2a615a-718e-4101-9364-2bf32b61b59d" >
-							<foreach doc:name="For Each" doc:id="5a968255-c29c-43f7-9d98-e7a631f4e696" collection="#[vars.successRecords]" >
-								<set-variable value="#[payload]" doc:name="successRecord" doc:id="edd315bc-6bc0-4ab3-a6e6-2dab54fb450d" variableName="failedRecord" />
+							<foreach doc:name="For Each" doc:id="5a968255-c29c-43f7-9d98-e7a631f4e696" collection="#[vars.badRecords]" >
+								<set-variable value="#[payload]" doc:name="failedRecord" doc:id="edd315bc-6bc0-4ab3-a6e6-2dab54fb450d" variableName="failedRecord" />
 								<os:retrieve doc:name="Retrieve" doc:id="67e951fb-4960-49b4-9a6a-a36edbfd41ed" key="#[vars.failedRecord.BD_Epicor_ID__c]" />
 								<ee:transform doc:name="" doc:id="362f9d48-5c7a-4ad7-9abd-7f5f0c0b1004" >
 									<ee:message >
@@ -329,6 +367,7 @@ output application/json
 									</ee:message>
 								</ee:transform>
 								<http:request method="POST" doc:name="Request" doc:id="dde29506-0aa1-4479-8c09-6dd311f080c1" config-ref="HTTP_Request_configuration1" path="/PublishQueue" />
+								<os:remove doc:name="Remove" doc:id="09ee5f84-2db5-4d53-b4f5-f01a4709ae92" key="#[vars.failedRecord.BD_Epicor_ID__c]" />
 							</foreach>
 						</async>
 					</when>

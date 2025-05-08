@@ -2,7 +2,10 @@
   "sampleData": {
     "8fa9efc7-c810-4e4e-be9d-7b1faa3a5ff8": {
       "payload": "sample_data/BulkOperationResult_1.dwl",
-      "vars-records": "sample_data/list_java_1.dwl"
+      "vars-records": "sample_data/list_java_2.dwl"
+    },
+    "9d885e0c-ea50-4aa0-beb3-aa0d079617e2": {
+      "payload": "sample_data/list_account.dwl"
     }
   }
 }
