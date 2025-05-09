@@ -66,12 +66,6 @@
 		</dependency>
 		<dependency>
 			<groupId>8d687dc5-2af7-4100-8808-5e4a6156064e</groupId>
-			<artifactId>mule-plugin-erpbocustomersvc</artifactId>
-			<version>1.0.5</version>
-			<classifier>mule-plugin</classifier>
-		</dependency>
-		<dependency>
-			<groupId>8d687dc5-2af7-4100-8808-5e4a6156064e</groupId>
 			<artifactId>mule-plugin-icebosystagsvc</artifactId>
 			<version>1.0.0</version>
 			<classifier>mule-plugin</classifier>
@@ -92,6 +86,12 @@
 			<groupId>8d687dc5-2af7-4100-8808-5e4a6156064e</groupId>
 			<artifactId>mule-plugin-baqsvc-customer</artifactId>
 			<version>2.0.0</version>
+			<classifier>mule-plugin</classifier>
+		</dependency>
+		<dependency>
+			<groupId>8d687dc5-2af7-4100-8808-5e4a6156064e</groupId>
+			<artifactId>mule-plugin-erpbocustomersvc</artifactId>
+			<version>1.0.7</version>
 			<classifier>mule-plugin</classifier>
 		</dependency>
 	</dependencies>

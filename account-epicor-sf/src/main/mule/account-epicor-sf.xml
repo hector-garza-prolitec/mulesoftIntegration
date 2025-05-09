@@ -347,17 +347,35 @@ failedRecords map (x, ix) -> {
 						<ee:transform doc:name="Transform Message" doc:id="9d885e0c-ea50-4aa0-beb3-aa0d079617e2">
 							<ee:message>
 								<ee:set-payload><![CDATA[%dw 2.0
-output application/json
----
-payload 
+
+var customers = payload 
     map ((item) -> {
     	"Company": "Prolitec",
         "CustNum": item.BD_Epicor_ID__c as Number,
         "SalesForceID_c": item.Id
-    })]]></ee:set-payload>
+    })
+
+output application/json
+---
+{
+	ds: {
+		Customer: customers
+	},
+	"continueProcessingOnError": false,
+    "rollbackParentOnChildError": true
+}]]></ee:set-payload>
 							</ee:message>
 						</ee:transform>
-						<erp-bo-customer-svc:newupdateext-customers doc:name="NewUpdateExt_Customers" doc:id="1fa6d382-b257-4474-8746-dfb4cb6c9e86" config-ref="Erp_BO_CustomerSvc_Config"/>
+						<try doc:name="Try" doc:id="8684b8f4-d997-4000-870c-b2099d6e8a02" >
+							<!-- [STUDIO:"NewUpdateExt_Customers"]<erp-bo-customer-svc:newupdateext-customers doc:name="NewUpdateExt_Customers" doc:id="1fa6d382-b257-4474-8746-dfb4cb6c9e86" config-ref="Erp_BO_CustomerSvc_Config" /> [STUDIO] -->
+							<!-- [STUDIO:"UpdateExt_Customer"]<erp-bo-customer-svc:updateext-customer doc:name="UpdateExt_Customer" doc:id="eb37f431-386e-43ed-ac91-918725d5ca2d" config-ref="Erp_BO_CustomerSvc_Config"/> [STUDIO] -->
+							<erp-bo-customer-svc:updateext doc:name="UpdateExt" doc:id="41d0388f-9a67-42f6-9e7d-307f2f105c5f" config-ref="Erp_BO_CustomerSvc_Config"/>
+							<error-handler >
+								<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="5b9fa262-9b71-47ce-97a1-d18a1faaef98" >
+									<logger level="INFO" doc:name="Logger" doc:id="16673681-9b91-4292-af05-7e2dbe5bd8bf" message='#["Error while saving SF Id: " ++ write(error.errorMessage.payload, "application/json") as String]'/>
+								</on-error-continue>
+							</error-handler>
+						</try>
 						<async doc:name="Processed" doc:id="cc1fe12c-0b3f-4fbb-9ad5-24cb0e903133">
 							<foreach doc:name="For Each" doc:id="4ba52e69-519f-4bad-8865-fcffc6e791bb" collection="#[vars.successRecords]">
 								<set-variable value="#[payload]" doc:name="successRecord" doc:id="1fb54452-6258-49a8-b993-435deb716299" variableName="successRecord" />
