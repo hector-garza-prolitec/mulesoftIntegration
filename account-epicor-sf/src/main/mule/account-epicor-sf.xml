@@ -10,7 +10,7 @@ http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/
 http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
 http://www.mulesoft.org/schema/mule/erp-bo-customer-svc http://www.mulesoft.org/schema/mule/erp-bo-customer-svc/current/mule-erp-bo-customer-svc.xsd
 http://www.mulesoft.org/schema/mule/businessactivityquery-mule-customer http://www.mulesoft.org/schema/mule/businessactivityquery-mule-customer/current/mule-businessactivityquery-mule-customer.xsd">
-	<flow name="mainFlow" doc:id="cb758a36-c969-49f7-9fd5-8ca0a1e84763" >
+	<flow name="mainFlow" doc:id="cb758a36-c969-49f7-9fd5-8ca0a1e84763" maxConcurrency="1">
 		<scheduler doc:name="Scheduler" doc:id="3c308bf4-ac16-4273-a089-263c1020eaf7" >
 			<scheduling-strategy >
 				<fixed-frequency frequency="1" timeUnit="MINUTES"/>
@@ -270,9 +270,10 @@ output application/json
 			</ee:variables>
 		</ee:transform>
 		<flow-ref doc:name="getEpicorRecords" doc:id="be0036b8-7583-4079-8645-752aa1ea73ca" name="getEpicorRecords"/>
-		<salesforce:upsert doc:name="Upsert" doc:id="67690e39-1edc-49a5-8cb8-ee10f8d284f2" config-ref="Salesforce_Config" objectType="Account" externalIdFieldName="BD_Epicor_ID__c">
+		<salesforce:upsert doc:name="Upsert" doc:id="67690e39-1edc-49a5-8cb8-ee10f8d284f2" config-ref="Salesforce_Config" objectType="Account" externalIdFieldName="Id" target="sfResponse">
 			<salesforce:records><![CDATA[#[vars.records]]]></salesforce:records>
 		</salesforce:upsert>
+		<logger level="INFO" doc:name="Logger" doc:id="cabb50d6-fca8-408b-a893-1a531202c3d6" message="#[&quot;SF Response: &quot; ++ write(vars.sfResponse, 'application/json') as String]"/>
 		<ee:transform doc:name="Transform Message" doc:id="8fa9efc7-c810-4e4e-be9d-7b1faa3a5ff8">
 			<ee:message>
 			</ee:message>
@@ -280,13 +281,13 @@ output application/json
 				<ee:set-variable variableName="sfIDs" ><![CDATA[%dw 2.0
 output application/java
 ---
-payload.items
+vars.sfResponse.items
   filter ((item) -> item.successful)
-  map ((item) -> "'" ++ item.id as String ++ "'")
+  map ((x) -> "'" ++ x.payload.id as String ++ "'")
   joinBy(",")]]></ee:set-variable>
 				<ee:set-variable variableName="successRecords" ><![CDATA[%dw 2.0
 
-var response = payload.items
+var response = vars.sfResponse.items
 var successItems = response filter ((res) -> res.successful)
 
 var successRecords = vars.records filter((reg) -> 
@@ -299,22 +300,34 @@ successRecords
     ]]></ee:set-variable>
 				<ee:set-variable variableName="badRecords" ><![CDATA[%dw 2.0
 
-var response = payload.items
-var failedItems = response filter ((res) -> res.successful == false)
+var response = vars.sfResponse.items
 
-var failedRecords = vars.records filter((reg) -> 
-	(failedItems map (x) -> x.payload.id) contains reg.Id
+var failedItemsWithIndex = response filter ((res, idx) -> res.successful == false) map ((res, idx) -> {item: res, index: idx})
+
+var failedRecords = vars.records filter ((reg, ix) -> 
+    
+    sizeOf(failedItemsWithIndex 
+        filter ((f) -> 
+            (f.item.payload.id != null and f.item.payload.id == reg.Id) or
+            (f.item.payload.id == null and f.index == ix)
+        )) > 0
+
 )
 
 output application/json
 ---
-
-failedRecords map (x) -> {
-	(x), 
-	"ErrorMessage" : ((failedItems filter (f) -> f.payload.id == x.Id) 
-						map (err) -> err.message)
-						joinBy(";")
-	
+//failedRecords
+failedRecords map (x, ix) -> {
+    (x), 
+    "ErrorMessage" : 
+        (
+            (failedItemsWithIndex filter ((f, index)-> 
+                (f.item.payload.id != null and f.item.payload.id == x.Id) or
+                (f.item.payload.id == null and f.index == ix)
+            	)
+            map (err) -> err.item.message)
+            joinBy(";")
+        )
 }
 ]]></ee:set-variable>
 			</ee:variables>
@@ -322,7 +335,7 @@ failedRecords map (x) -> {
 		<scatter-gather doc:name="Scatter-Gather" doc:id="bbab983b-6d2b-4128-97bc-5b35add2ca0a" >
 			<route >
 				<choice doc:name="Choice" doc:id="8e1e30e1-5770-4263-939d-9081de9fe3e8">
-			<when expression="#[vars.sfIDs != null]">
+			<when expression="#[!isEmpty(vars.sfIDs)]">
 						<salesforce:query doc:name="Get SF Records" doc:id="dea0c4dd-f2ce-419f-a084-17094e1744ae" config-ref="Salesforce_Config">
 							<salesforce:salesforce-query ><![CDATA[Select Id, BD_Epicor_ID__c FROM Account WHERE Id IN(:ids)]]></salesforce:salesforce-query>
 							<salesforce:parameters ><![CDATA[#[output application/java
@@ -339,7 +352,7 @@ output application/json
 payload 
     map ((item) -> {
     	"Company": "Prolitec",
-        "CustNum": item.BD_Epicor_ID__c,
+        "CustNum": item.BD_Epicor_ID__c as Number,
         "SalesForceID_c": item.Id
     })]]></ee:set-payload>
 							</ee:message>
@@ -433,24 +446,29 @@ output application/json
 
 var forceId = Mule::p("forceSyncIDs") as Boolean
 
-var id = if(forceId) "" else payload.Customer_SalesForceID_c
+var id = if (sizeOf(payload) > 0) payload[0].Id 
+		else 
+			if(forceId) "" 
+			else vars.epicorResponse.Customer_SalesForceID_c
 
 output application/json
 ---
 vars.records ++ [
-	"Id": id,
-    "Name": payload.Customer_Name,
-    "AccountNumber": payload.Customer_CustID,
-    "BD_Epicor_ID__c": payload.Customer_CustNum,
-    "BD_Terms__c": payload.Customer_TermsCode
+	{
+		"Id": id,
+	    "Name": vars.epicorResponse.Customer_Name,
+	    "AccountNumber": vars.epicorResponse.Customer_CustID,
+	    "BD_Epicor_ID__c": vars.epicorResponse.Customer_CustNum as String,
+	    "BD_Terms__c": vars.epicorResponse.Customer_TermsCode
+    }
 ]
 ]]></ee:set-variable>
 				</ee:variables>
 		</ee:transform>
 			<async doc:name="Schedule" doc:id="27a12cec-602f-47f2-8979-9109678f280e" >
-				<ee:transform doc:name="Transform Message" doc:id="34d405df-3291-4677-bb10-9c92ecec45c9" >
-					<ee:message >
-						<ee:set-payload ><![CDATA[%dw 2.0
+				<ee:transform doc:name="Transform Message" doc:id="34d405df-3291-4677-bb10-9c92ecec45c9">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
 var time = ((now() as LocalDateTime)
     as String { format: "yyyy-MM-dd'T'HH:mm:ss" }
     ++ "Z")
@@ -469,8 +487,8 @@ output application/json
 					</ee:message>
 				</ee:transform>
 				<http:request method="POST" doc:name="Request" doc:id="9774a0dc-d54e-4b6e-8ae0-288d8882904f" config-ref="HTTP_Request_configuration1" path="/PublishQueue" />
-				<os:store doc:name="Store" doc:id="e730e763-e044-433a-bb37-fc8026ad95df" key="#[vars.epicorResponse.Customer_CustNum]" >
-					<os:value ><![CDATA[#[payload.Key4]]]></os:value>
+				<os:store doc:name="Store" doc:id="e730e763-e044-433a-bb37-fc8026ad95df" key="#[vars.epicorResponse.Customer_CustNum]">
+					<os:value><![CDATA[#[payload.Key4]]]></os:value>
 				</os:store>
 			</async>
 		</foreach>

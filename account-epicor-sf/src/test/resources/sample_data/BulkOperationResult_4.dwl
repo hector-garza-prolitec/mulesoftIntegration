@@ -1,6 +1,6 @@
 
 %dw 2.0
-output application/json
+output application/java 
 ---
 {
   id : {
@@ -8,13 +8,13 @@ output application/json
   items : [{
       exception : {
       } as Object { class: "java.lang.Exception"},
-      id : {value: "001U900000NXVsqIAH"
+      id : {
       },
-      message : "Error",
+      message : "73",
       payload : {
-      	id: "001U900000NXVsqIAH"
+      	"id":"123"
       } as Object { class: "org.mule.extension.salesforce.api.core.Result"},
-      statusCode : "Neque",
+      statusCode : "vel",
       successful : true,
     },
 {
@@ -22,12 +22,12 @@ output application/json
       } as Object { class: "java.lang.Exception"},
       id : {
       },
-      message : "Error with invalid fields",
+      message : "80",
       payload : {
-      	id: "001U900000NXVsqIAHH"
+      	id: "456"
       } as Object { class: "org.mule.extension.salesforce.api.core.Result"},
-      statusCode : "qui",
-      successful : false,
+      statusCode : "sint",
+      successful : true,
     }],
   successful : false,
 }

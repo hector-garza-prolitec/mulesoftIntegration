@@ -1,14 +1,19 @@
 {
   "sampleData": {
     "8fa9efc7-c810-4e4e-be9d-7b1faa3a5ff8": {
-      "payload": "sample_data/BulkOperationResult_1.dwl",
-      "vars-records": "sample_data/list_java_2.dwl"
+      "vars-records": "sample_data/list_java_4.dwl",
+      "vars-sfResponse": "sample_data/BulkOperationResult_4.dwl"
     },
     "9d885e0c-ea50-4aa0-beb3-aa0d079617e2": {
       "payload": "sample_data/list_account.dwl"
     },
     "d409e15c-0cf5-4b45-91e2-2f30e112f19a": {
       "attributes": "sample_data/httprequestattributes.dwl"
+    },
+    "9e27fa5f-2cff-4d37-8e3c-3a2b7d2f2eba": {
+      "payload": "sample_data/list_Account_1.dwl",
+      "vars-records": "sample_data/list_java_3.dwl",
+      "vars-epicorResponse": "sample_data/json.json"
     }
   }
 }
